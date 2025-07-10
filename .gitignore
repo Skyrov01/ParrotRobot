@@ -1,0 +1,51 @@
+# ROS 2 build artifacts
+/build/
+/install/
+/log/
+
+# Python artifacts
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.pdb
+*.egg-info/
+*.egg
+
+# Python virtual environments (if used)
+venv/
+.env/
+.venv/
+
+# Editor / IDE settings
+.vscode/
+.idea/
+*.swp
+
+# OS-specific files
+.DS_Store
+Thumbs.db
+
+# Test results
+*.xml
+*.log
+coverage/
+*.prof
+
+# Misc
+*.bak
+*.tmp
+*.orig
+*.out
+
+# Compiled files
+*.so
+*.dll
+*.a
+*.o
+*.d
+
+# ROS launch debug or RViz configs (optional)
+*.launch.py~
+*.rviz
+
