@@ -16,6 +16,7 @@ __pycache__/
 venv/
 .env/
 .venv/
+.ros2_venv/
 
 # Editor / IDE settings
 .vscode/

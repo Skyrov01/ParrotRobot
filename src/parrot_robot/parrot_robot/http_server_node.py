@@ -21,6 +21,9 @@ class HTTPBridge(Node):
    
     def __init__(self):
         super().__init__('http_server_node')
+        self.servo_pub = self.create_publisher(ServoMotorMsg, '/servo_cmd', 10)
+        
+
 
     def publish_servo(self, target, position, speed):
         msg = ServoMotorMsg()
@@ -33,6 +36,12 @@ class HTTPBridge(Node):
         pub = self.create_publisher(ServoMotorMsg, topic, 10)
         pub.publish(msg)
 
+@app.route('/test', methods=['GET'])
+def test_route():
+    if ros_node:
+        return jsonify({"status": "OK", "node_name": ros_node.get_name()})
+    else:
+        return jsonify({"status": "ROS not ready"}), 503
 
 def ros_spin():
     rclpy.spin(ros_node)
@@ -42,7 +51,7 @@ def main():
     rclpy.init()
     ros_node = HTTPBridge()
     set_ros_node(ros_node)
-    register_routes(app)
+    register_routes(app, ros_node)
 
     threading.Thread(target=ros_spin, daemon=True).start()
     app.run(debug=True, host="0.0.0.0", port=5000)  # Open server on port 5000
