@@ -22,6 +22,7 @@ setup(
     entry_points={
         "console_scripts": [
             "parrot_controller = parrot_robot.parrot_controller:main",
+            "parrot_node = parrot_robot.parrot_node:main",
             "head_node = parrot_robot.head_node:main",
             "wings_node = parrot_robot.wings_node:main",
             "sound_node = parrot_robot.sound_node:main",

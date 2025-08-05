@@ -15,7 +15,7 @@ class HeadNode(Node):
 
         # Set initial positions
         for name, angle in servo.last_angles.items():
-            if name in servo.servos:
+            if name in servo.servos and name in ["head_rotate", "head_tilt"]:
                 servo.servos[name].angle = angle
                 self.get_logger().info(f"[HeadNode] Set {name} to {angle}° at startup")
 

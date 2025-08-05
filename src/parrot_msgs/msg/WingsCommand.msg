@@ -1,2 +1,5 @@
-string speed
+float32 left_position
+float32 right_position
+float32 speed
+string method
 int32 repetitions
