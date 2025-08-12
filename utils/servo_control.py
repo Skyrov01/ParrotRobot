@@ -16,6 +16,7 @@ servo_names = list(servo_map.keys())
 
 FREQ = 50  # Hz
 chip = lgpio.gpiochip_open(0)
+SETTLE_TIME = 0.3
 
 # Initialize GPIO outputs
 for pin in servo_pins:
@@ -29,26 +30,41 @@ def set_pwm(pin, angle):
     duty_cycle = pulse / 20000.0
     lgpio.tx_pwm(chip, pin, FREQ, duty_cycle)
 
+def send_angle(pin, angle):
+    pulse = angle_to_pulse(angle)              # microseconds
+    duty_cycle = pulse / 20000.0               # 20,000 us period at 50 Hz
+    lgpio.tx_pwm(chip, pin, FREQ, duty_cycle)  # start/continue PWM
+
+def stop_pwm(pin):
+    # Fully stop PWM (no pulses). This is what actually "releases" the servo.
+    lgpio.tx_pwm(chip, pin, 0, 0)
+
 last_angles = [90, 90, 170, 5]
 
 def move_instant(index, target_angle):
-    set_pwm(servo_pins[index], target_angle)
-    time.sleep(0.1)
-    set_pwm(servo_pins[index], 0)
+    pin = servo_pins[index]
+    send_angle(pin, target_angle)
+    time.sleep(SETTLE_TIME) 
+    stop_pwm(pin)
     last_angles[index] = target_angle
 
 def move_linear(index, target_angle, step_delay=0.01, step_size=1):
+    pin = servo_pins[index]
     current_angle = last_angles[index]
+    if target_angle == current_angle:
+        return
     step = step_size if target_angle > current_angle else -step_size
-    for angle in range(current_angle, target_angle, step):
-        set_pwm(servo_pins[index], angle)
+    for angle in range(int(current_angle), int(target_angle), step):
+        send_angle(pin, angle)
         time.sleep(step_delay)
-    set_pwm(servo_pins[index], target_angle)
-    time.sleep(0.05)
-    set_pwm(servo_pins[index], 0)
+    # Final target set + hold, then stop
+    send_angle(pin, target_angle)
+    time.sleep(SETTLE_TIME)
+    stop_pwm(pin)
     last_angles[index] = target_angle
 
 def move_ease_in_out(index, target_angle, duration=1.0, steps=50):
+    pin = servo_pins[index]
     start_angle = last_angles[index]
     if start_angle == target_angle:
         return
@@ -56,9 +72,10 @@ def move_ease_in_out(index, target_angle, duration=1.0, steps=50):
         t = i / steps
         eased_t = 0.5 * (1 - math.cos(math.pi * t))
         current_angle = start_angle + (target_angle - start_angle) * eased_t
-        set_pwm(servo_pins[index], current_angle)
+        send_angle(pin, current_angle)
         time.sleep(duration / steps)
-    set_pwm(servo_pins[index], 0)
+    time.sleep(SETTLE_TIME)
+    stop_pwm(pin)
     last_angles[index] = target_angle
 
 def move_servo(index, angle):
