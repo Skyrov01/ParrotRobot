@@ -25,10 +25,7 @@ for pin in servo_pins:
 def angle_to_pulse(angle):
     return int(500 + (angle / 180.0) * 2000)
 
-def set_pwm(pin, angle):
-    pulse = angle_to_pulse(angle)
-    duty_cycle = pulse / 20000.0
-    lgpio.tx_pwm(chip, pin, FREQ, duty_cycle)
+
 
 def send_angle(pin, angle):
     pulse = angle_to_pulse(angle)              # microseconds

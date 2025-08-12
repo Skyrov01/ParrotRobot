@@ -54,6 +54,12 @@ def init_servos():
         else:
             print(f"[WARN] Unknown servo: {name}")
 
+def stop_servo(name):
+    if name in servos:
+        servos[name].detach()
+        print(f"[INFO] Stopped {name}")
+    else:
+        print(f"[WARN] Unknown servo: {name}")
 
 def move_servo(name, angle, method="instant", speed=1.0):
     angle = int(float(angle))
@@ -70,6 +76,7 @@ def move_servo(name, angle, method="instant", speed=1.0):
         wait_time = abs(angle - current) * speed / 90  # 90°/s as baseline
         print(f"[INFO] Instant move {name} to {angle}° (current: {current}°), estimated wait: {wait_time:.2f}s")
         sleep(max(wait_time, 0.3))  # Always wait at least 0.3s
+        stop_servo(name)
 
     elif method == "linear":
         step = 1 if angle > current else -1
@@ -77,6 +84,8 @@ def move_servo(name, angle, method="instant", speed=1.0):
             servo_obj.angle = a
             sleep(0.01)
         servo_obj.angle = angle
+        stop_servo(name)
+
     elif method == "ease":  # Ease-In-Out
         steps = 50
         for i in range(steps + 1):
@@ -85,7 +94,7 @@ def move_servo(name, angle, method="instant", speed=1.0):
             a = current + (angle - current) * eased
             servo_obj.angle = a
             sleep(speed / steps)
-
+        stop_servo(name)
     last_angles[name] = angle
 
 def cleanup():
