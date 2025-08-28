@@ -16,6 +16,7 @@ rosidl_generate_interfaces(${PROJECT_NAME}
   "msg/WingsCommand.msg"
   "msg/SoundCommand.msg"
   "msg/ServoMotorMsg.msg"
+  "msg/ServoMotorStatus.msg"
   DEPENDENCIES std_msgs
 )
 

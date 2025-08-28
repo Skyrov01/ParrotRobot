@@ -1,6 +1,11 @@
 # routes/servo_routes.py
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify, Response, stream_with_context
 from . import context 
+
+from queue import Empty
+
+import json                                          
+import time  
 
 servo_bp = Blueprint("servo", __name__)
 
@@ -49,6 +54,14 @@ def servo_reset(target):
         return jsonify({"status": "ROS not ready"}), 503
 
 
+@servo_bp.route('/servo/cleanup', methods=['POST'])
+def servo_cleanup():
+    import parrot_robot.servo_driver as servo
+    try:
+        servo.cleanup()
+        return jsonify({"status": "cleanup complete"})
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
 
 @servo_bp.route('/servo/debug', methods=['GET'])
 def debug_ros_node():
@@ -71,3 +84,47 @@ def servo_status(target):
         "target": target,
         "busy": status
     })
+
+
+@servo_bp.route("/servo/stream", methods=["GET"])
+def servo_stream():
+
+    ros_node = context.get_ros_node()
+
+    if not ros_node:
+        return jsonify({"status": "ROS not ready"}), 503
+
+    @stream_with_context
+    def gen():
+        # initial snapshot
+        yield f"data: {json.dumps({'snapshot': ros_node.state})}\n\n"
+        # incremental updates
+        while True:
+            try:
+                data = ros_node._q.get(timeout=5.0)
+                yield f"data: {data}\n\n"
+            except Empty:
+                yield f": keep-alive {int(time.time())}\n\n"
+    headers = {
+    "Cache-Control": "no-cache",
+    "Connection": "keep-alive",
+    "Access-Control-Allow-Origin": "*",  # critical for cross-host EventSource
+    }
+    return Response(gen(), headers=headers, mimetype="text/event-stream")
+
+
+# --------------------------------------------------------------------- # 
+#                          HIGH LEVEL ROUTES
+# --------------------------------------------------------------------- # 
+
+@servo_bp.route('/agree/amplitude/<float:amplitude>/speed/<float:speed>', methods=['POST'])
+def agree(amplitude, speed):
+    ros_node = context.get_ros_node()
+    if not ros_node:
+        return jsonify({"status": "ROS not ready"}), 503
+    msg = BehaviourCommand()
+    msg.behaviour_type = "agree"
+    msg.amplitude = amplitude
+    msg.speed = speed
+    ros_node.behaviour_pub.publish(msg)
+    return jsonify({"status": "agree command sent"})
