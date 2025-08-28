@@ -1,5 +1,11 @@
 # http_server_node.py
 import rclpy
+
+
+import json                                          
+import time                                          
+from queue import Queue                              
+
 from rclpy.node import Node
 from flask import Flask, request, jsonify
 from flask_cors import CORS
@@ -7,7 +13,7 @@ from flask_cors import CORS
 from std_msgs.msg import String  # already included in parrot_node
 
 from parrot_msgs.msg import NodCommand, WingsCommand, SoundCommand
-from parrot_msgs.msg import ServoMotorMsg # type: ignore
+from parrot_msgs.msg import ServoMotorMsg, ServoMotorStatus
 import threading
 
 from .routes import register_routes
@@ -33,6 +39,30 @@ class HTTPBridge(Node):
             "left_wing": Lock(),
             "right_wing": Lock()
         }
+
+        self.state = {}   # e.g. {"head_rotate": {...last status...}}
+        self._q = Queue()
+        # self.create_subscription(ServoMotorStatus, "/servo/status", self._status_cb, 10)
+
+        for name in self.servo_locks.keys():
+            self.create_subscription(ServoMotorStatus, f"/servo/status/{name}", self._status_cb, 10)
+           
+
+    def _status_cb(self, msg: ServoMotorStatus):
+        payload = {
+            "target": msg.target,
+            "commanded_deg": msg.commanded_deg,
+            "measured_deg": msg.measured_deg,
+            "method": msg.method,
+            "speed": msg.speed,
+            "status": int(msg.status),
+            "saturated": bool(msg.saturated),
+            "fault": bool(msg.fault),
+            "message": msg.message,
+            "stamp": int(self.get_clock().now().nanoseconds)  # or convert msg.stamp
+        }
+        self.state[msg.target] = payload
+        self._q.put(json.dumps(payload))
 
     def get_servo_status(self, target):
         lock = self.servo_locks.get(target)
@@ -85,6 +115,9 @@ def test_route():
     else:
         return jsonify({"status": "ROS not ready"}), 503
 
+
+
+
 def ros_spin():
     rclpy.spin(ros_node)
 
@@ -96,7 +129,7 @@ def main():
     register_routes(app, ros_node)
 
     threading.Thread(target=ros_spin, daemon=True).start()
-    app.run(debug=True, host="0.0.0.0", port=5000)  # Open server on port 5000
+    app.run(host="0.0.0.0", port=5000, debug=False, use_reloader=False, threaded=True)  # Open server on port 5000
 
 if __name__ == "__main__":
     main()
