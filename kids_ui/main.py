@@ -80,7 +80,17 @@ class MainPage:
                     def run():
                         threading.Thread(target=run_user_code).start()
 
+                    def cleanup():
+                        try:
+                            url = "http://192.168.1.42:5000/servo/cleanup"
+                            r = requests.post(url)
+                            result = r.json()
+                            ui.notify(result.get("status", "No response"))
+                        except Exception as e:
+                            ui.notify(f"Cleanup failed: {e}")
+
                     ui.button("Run Code", on_click=run, color="red").classes()
+                    ui.button("Cleanup", on_click=cleanup, color="orange")
 
             with ui.card().classes("w-full mt-6"):
                 with ui.row().classes("w-full gap-1 no-wrap"):
@@ -92,14 +102,15 @@ class MainPage:
                 
                # Container for the parrot image and controls
                 ui.add_head_html(style_robot_controls_tailwind)
+                ui.add_head_html(script_status_servo)
                 # --- JavaScript for toggling popups on click ---
                 ui.add_body_html(script_robot_controls_tailwind)
 
-                def on_slider_change(e):
-         
+                def on_slider_change(target, e):
+                    
                     self.position_display.value = f"Position: {e.value}°"
                     self.position_display.update()   
-                    send_servo_command(position=e.value)
+                    send_servo_command(target=target, position=e.value)
                     print(f"Slider changed to: {e.value}")  
                     
                 
@@ -114,26 +125,26 @@ class MainPage:
                             ui.element('div').classes('hotspot').style('top: 90px; left: 250px;').props('id=head_circle')
                             with ui.element('div').classes('popup').style('top: -20px; left: 280px;').props('id=head_popup'):
                                 ui.label('Head Rotate')
-                                head_slider = ui.slider(min=10, max=170, value=90, step=1, on_change=on_slider_change).props('label-always')
+                                head_slider = ui.slider(min=10, max=170, value=90, step=1, on_change=lambda e: on_slider_change("head_rotate", e)).props('label-always')
                                 # ui.button('Send', on_click=lambda: self.send_servo('head_rotate', head_slider.value))
 
                             ui.element('div').classes('hotspot').style('top: 230px; left: 200px;').props('id=tilt_circle')
                             with ui.element('div').classes('popup').style('top: 280px; left: 150px;').props('id=tilt_popup'):
                                 ui.label('Head Tilt')
-                                head_slider = ui.slider(min=10, max=170, value=90, step=1, on_change=on_slider_change).props('label-always')
+                                head_slider = ui.slider(min=10, max=170, value=90, step=1,on_change=lambda e: on_slider_change("head_tilt", e)).props('label-always')
 
                             # === LEFT WING ===
                             ui.element('div').classes('hotspot').style('top: 220px; left: 90px;').props('id=left_circle')
                             with ui.element('div').classes('popup').style('top: 260px; left: -150px;').props('id=left_popup'):
                                 ui.label('Left Wing')
-                                left_slider = ui.slider(min=10, max=170, value=90, step=1, on_change=on_slider_change).props('label-always')
+                                left_slider = ui.slider(min=10, max=170, value=90, step=1, on_change=lambda e: on_slider_change("left_wing", e)).props('label-always')
                                 # ui.button('Send', on_click=lambda: self.send_servo('left_wing', left_slider.value))
 
                             # === RIGHT WING ===
                             ui.element('div').classes('hotspot').style('top: 220px; left: 380px;').props('id=right_circle')
                             with ui.element('div').classes('popup').style('top: 260px; left: 400px;').props('id=right_popup'):
                                 ui.label('Right Wing')
-                                right_slider = ui.slider(min=10, max=170, value=90, step=1, on_change=on_slider_change).props('label-always')
+                                right_slider = ui.slider(min=10, max=170, value=90, step=1, on_change=lambda e: on_slider_change("right_wing", e)).props('label-always')
                                 # ui.button('Send', on_click=lambda: self.send_servo('right_wing', right_slider.value))
 
                 with ui.card().classes("w-full mt-6"):
@@ -183,7 +194,7 @@ class MainPage:
 
                                 # Row 1: [empty, head tilt, empty]
                                 servo_status_circle(None, "", insert=False)
-                                servo_status_circle("servo_head_tilt", 90)
+                                servo_status_circle("servo_head_rotate", 90)
                                 servo_status_circle(None, "", insert=False)
 
                                 # Row 2: [left wing, empty, right wing]
@@ -193,7 +204,7 @@ class MainPage:
 
                                 # Row 3: [empty, head rotate, empty]
                                 servo_status_circle(None, "", insert=False)
-                                servo_status_circle("servo_head_rotate", 90)
+                                servo_status_circle("servo_head_tilt", 90)
                                 servo_status_circle(None, "", insert=False)
 
                             ui.run_javascript("updateServoStatus('servo_head_tilt', 45, 'moving')")
@@ -221,9 +232,9 @@ class MainPage:
                     # ui.button("Send Command", on_click=lambda: send_servo_command()).classes("mt-4")
 
                 # Command sender function
-                def send_servo_command(position=None):
+                def send_servo_command(target=None, position=None):
                     host = "http://192.168.1.42:5000"
-                    target = target_input.value
+                    target = target if target is not None else target_input.value
                     position = float(position) if position is not None else position_input.value
                     speed = speed_input.value
                     method = method_input.value
