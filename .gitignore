@@ -28,7 +28,7 @@ venv/
 Thumbs.db
 
 # Test results
-*.xml
+# *.xml
 *.log
 coverage/
 *.prof
