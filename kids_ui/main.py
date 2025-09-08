@@ -32,6 +32,24 @@ for i in range(5):
     time.sleep(0.5)
 """
 
+AMPLITUDE_MAP = {
+        "low": 15,
+        "medium": 30,
+        "high": 60,
+    }
+
+
+BASE_URL = "http://192.168.1.42:5000"
+
+def generate_route_code(path_template: str, variables: dict):
+    
+    route = path_template
+    for key, value in variables.items():
+        route = route.replace(f"<{key}>", str(value))
+    full_url = f"{BASE_URL}/{route}"
+    code = f'requests.post("{full_url}")'
+    return route, code
+
 ui.add_css(style_parrot_control)
 
 class MainPage:
@@ -82,7 +100,7 @@ class MainPage:
 
                     def cleanup():
                         try:
-                            url = "http://192.168.1.42:5000/servo/cleanup"
+                            url = f"{BASE_URL}/servo/cleanup"
                             r = requests.post(url)
                             result = r.json()
                             ui.notify(result.get("status", "No response"))
@@ -96,6 +114,18 @@ class MainPage:
                 with ui.row().classes("w-full gap-1 no-wrap"):
                     with ui.card().classes("w-1/2"):
                         ui.label("Robot Setup Parameters").classes("text-lg font-bold")
+
+                        ui.label("Base URL").classes("mt-2")
+                        base_url_input = ui.input(value=BASE_URL).classes("w-full").props('outlined')
+
+                        def update_base_url():
+                            global BASE_URL
+                            BASE_URL = base_url_input.value
+                            ui.notify(f"✅ BASE_URL updated to {BASE_URL}")
+
+                        # Update when input loses focus or Enter is pressed
+                        base_url_input.on('blur', lambda e: update_base_url())
+                        base_url_input.on('keydown.enter', lambda e: update_base_url())
                         
                     with ui.card().classes("w-1/2"):
                         ui.label("Robot Description").classes("text-lg font-bold")
@@ -117,7 +147,7 @@ class MainPage:
                 with ui.element('div').classes('parrot-container w-full flex justify-center items-center relative'):
                     with ui.card().classes('w-full h-full relative'):
                         # Robot parrot interactive control
-                        ui.label("Control the Parrot Robot").classes("text-lg font-bold")
+                        ui.label("Manual Control").classes("text-lg font-bold")
                         with ui.element('div').classes('relative mx-auto').style('width: 500px; height: 500px;'):
                             ui.image('static/images/parrot_robot.png').classes('absolute w-full h-full object-contain')
 
@@ -214,6 +244,222 @@ class MainPage:
                     # position_slider = ui.slider(min=10, max=170, value=90, step=1, on_change=on_slider_change)
 
 
+                # -------------------------- Predefined Motions -----------------------------
+                # Agree Card
+                with ui.row().classes("w-full gap-1 no-wrap"):
+                    with ui.card().classes("w-full md:w-1/2"):
+
+                        ui.label("Agree Motion").classes("text-lg font-bold")
+
+                        # --- Amplitude as toggle buttons ---
+                        with ui.row().classes("items-center gap-4 w-full"):
+                            ui.label("Amplitude").classes("w-24")
+                            amp = ui.toggle(["low", "medium", "high"], value="medium") \
+                                    .props('color=red spread toggle-color=green').classes("w-1/2 flex-grow")
+
+                        # --- Speed ---
+                        with ui.row().classes("items-center gap-4 w-full"):
+                            ui.label("Speed").classes("w-24")
+                            speed = ui.slider(min=0.1, max=5.0, value=1.0, step=0.1) \
+                                    .props('label-always').classes("w-1/2 flex-grow")
+
+                        # --- Repetitions ---
+                        with ui.row().classes("items-center gap-4 w-full"):
+                            ui.label("Repetitions").classes("w-24")
+                            reps = ui.slider(min=1, max=10, value=1, step=1) \
+                                    .props('label-always').classes("w-1/2 flex-grow")
+
+                        # --- Preview fields ---
+                        route_label = ui.label().classes("mt-2 text-sm font-mono text-blue-600")
+                        code_box = ui.input(label="Copy me!").classes("w-full h-8 font-mono")
+
+                        def update_agree_preview():
+                            route = f"/agree/amplitude/{amp.value}/speed/{speed.value}/repetitions/{int(reps.value)}"
+                            full_url = f"{BASE_URL}{route}"
+                            route_label.text = f"Route: {route}"
+                            code_box.value = f'requests.post("{full_url}")'
+                            return full_url
+
+                        def execute_agree():
+                            full_url = update_agree_preview()
+                            try:
+                                r = requests.post(full_url)
+                                data = r.json()
+                                ui.notify(f"✅ Command sent: {data}")
+                            except Exception as e:
+                                ui.notify(f"❌ Failed to send command: {e}")
+
+                        # --- Bind updates ---
+                        amp.on('update:model-value', lambda e: update_agree_preview())
+                        speed.on('update:model-value', lambda e: update_agree_preview())
+                        reps.on('update:model-value', lambda e: update_agree_preview())
+
+                        ui.button("Send Command", on_click=execute_agree).classes("mt-2")
+
+                        update_agree_preview()
+
+                    with ui.card().classes("w-full md:w-1/2"):
+
+                        ui.label("Disagree Motion").classes("text-lg font-bold")
+
+                        # --- Amplitude as toggle buttons ---
+                        with ui.row().classes("items-center gap-4 w-full"):
+                            ui.label("Amplitude").classes("w-24")
+                            amp_dis = ui.toggle(["low", "medium", "high"], value="medium") \
+                                        .props('color=red spread toggle-color=green').classes("w-1/2 flex-grow")
+
+                        # --- Speed ---
+                        with ui.row().classes("items-center gap-4 w-full"):
+                            ui.label("Speed").classes("w-24")
+                            speed_dis = ui.slider(min=0.1, max=5.0, value=1.0, step=0.1) \
+                                        .props('label-always').classes("w-1/2 flex-grow")
+
+                        # --- Repetitions ---
+                        with ui.row().classes("items-center gap-4 w-full"):
+                            ui.label("Repetitions").classes("w-24")
+                            reps_dis = ui.slider(min=1, max=10, value=1, step=1) \
+                                        .props('label-always').classes("w-1/2 flex-grow")
+
+                        # --- Preview fields ---
+                        route_label_dis = ui.label().classes("mt-2 text-sm font-mono text-blue-600")
+                        code_box_dis = ui.input(label="Copy me!").classes("w-full h-8 font-mono")
+
+                        def update_disagree_preview():
+                            route = f"/disagree/amplitude/{amp_dis.value}/speed/{speed_dis.value}/repetitions/{int(reps_dis.value)}"
+                            full_url = f"{BASE_URL}{route}"
+                            route_label_dis.text = f"Route: {route}"
+                            code_box_dis.value = f'requests.post("{full_url}")'
+                            return full_url
+
+                        def execute_disagree():
+                            full_url = update_disagree_preview()
+                            try:
+                                r = requests.post(full_url)
+                                data = r.json()
+                                ui.notify(f"✅ Command sent: {data}")
+                            except Exception as e:
+                                ui.notify(f"❌ Failed to send command: {e}")
+
+                        # --- Bind updates ---
+                        amp_dis.on('update:model-value', lambda e: update_disagree_preview())
+                        speed_dis.on('update:model-value', lambda e: update_disagree_preview())
+                        reps_dis.on('update:model-value', lambda e: update_disagree_preview())
+
+                        ui.button("Send Command", on_click=execute_disagree).classes("mt-2")
+
+                        update_disagree_preview()
+
+                with ui.row().classes("w-full gap-1 no-wrap"):
+                    with ui.card().classes("w-full md:w-1/2"):
+
+                        ui.label("Maybe Motion").classes("text-lg font-bold")
+
+                        # --- Amplitude as toggle buttons ---
+                        with ui.row().classes("items-center gap-4 w-full"):
+                            ui.label("Amplitude").classes("w-24")
+                            amp_ind = ui.toggle(["low", "medium", "high"], value="medium") \
+                                        .props('color=red spread toggle-color=green').classes("w-1/2 flex-grow")
+
+                        # --- Speed ---
+                        with ui.row().classes("items-center gap-4 w-full"):
+                            ui.label("Speed").classes("w-24")
+                            speed_ind = ui.slider(min=0.1, max=5.0, value=1.0, step=0.1) \
+                                        .props('label-always').classes("w-1/2 flex-grow")
+
+                        # --- Repetitions ---
+                        with ui.row().classes("items-center gap-4 w-full"):
+                            ui.label("Repetitions").classes("w-24")
+                            reps_ind = ui.slider(min=1, max=10, value=1, step=1) \
+                                        .props('label-always').classes("w-1/2 flex-grow")
+
+                        # --- Preview fields ---
+                        route_label_ind = ui.label().classes("mt-2 text-sm font-mono text-blue-600")
+                        code_box_ind = ui.textarea(label="Python Code").classes("w-full h-8 font-mono")
+
+                        def update_indifference_preview():
+                            route = f"/maybe/amplitude/{amp_ind.value}/speed/{speed_ind.value}/repetitions/{int(reps_ind.value)}"
+                            full_url = f"{BASE_URL}{route}"
+                            route_label_ind.text = f"Route: {route}"
+                            code_box_ind.value = f'requests.post("{full_url}")'
+                            return full_url
+
+                        def execute_indifference():
+                            full_url = update_indifference_preview()
+                            try:
+                                r = requests.post(full_url)
+                                data = r.json()
+                                ui.notify(f"✅ Command sent: {data}")
+                            except Exception as e:
+                                ui.notify(f"❌ Failed to send command: {e}")
+
+                        # --- Bind updates ---
+                        amp_ind.on('update:model-value', lambda e: update_indifference_preview())
+                        speed_ind.on('update:model-value', lambda e: update_indifference_preview())
+                        reps_ind.on('update:model-value', lambda e: update_indifference_preview())
+
+                        ui.button("Send Command", on_click=execute_indifference).classes("mt-2")
+
+                        update_indifference_preview()
+
+                    with ui.card().classes("w-full md:w-1/2"):
+
+                        ui.label("Wave Motion").classes("text-lg font-bold")
+
+                        # --- Wing selection ---
+                        with ui.row().classes("items-center gap-4 w-full"):
+                            ui.label("Wing").classes("w-24")
+                            wing_wave = ui.select(["left_wing", "right_wing"], value="left_wing") \
+                                            .classes("w-1/2 flex-grow")
+
+                        # --- Amplitude as toggle buttons ---
+                        with ui.row().classes("items-center gap-4 w-full"):
+                            ui.label("Amplitude").classes("w-24")
+                            amp_wave = ui.toggle(["low", "medium", "high"], value="medium") \
+                                        .props('color=red spread toggle-color=green').classes("w-1/2 flex-grow")
+
+                        # --- Speed ---
+                        with ui.row().classes("items-center gap-4 w-full"):
+                            ui.label("Speed").classes("w-24")
+                            speed_wave = ui.slider(min=0.1, max=5.0, value=1.0, step=0.1) \
+                                            .props('label-always').classes("w-1/2 flex-grow")
+
+                        # --- Repetitions ---
+                        with ui.row().classes("items-center gap-4 w-full"):
+                            ui.label("Repetitions").classes("w-24")
+                            reps_wave = ui.slider(min=1, max=10, value=3, step=1) \
+                                            .props('label-always').classes("w-1/2 flex-grow")
+
+                        # --- Preview fields ---
+                        route_label_wave = ui.label().classes("mt-2 text-sm font-mono text-blue-600")
+                        code_box_wave = ui.textarea(label="Python Code").classes("w-full h-8 font-mono")
+
+                        def update_wave_preview():
+                            route = f"/wave/{wing_wave.value}/amplitude/{amp_wave.value}/speed/{speed_wave.value}/repetitions/{int(reps_wave.value)}"
+                            full_url = f"{BASE_URL}{route}"
+                            route_label_wave.text = f"Route: {route}"
+                            code_box_wave.value = f'requests.post("{full_url}")'
+                            return full_url
+
+                        def execute_wave():
+                            full_url = update_wave_preview()
+                            try:
+                                r = requests.post(full_url)
+                                data = r.json()
+                                ui.notify(f"✅ Command sent: {data}")
+                            except Exception as e:
+                                ui.notify(f"❌ Failed to send command: {e}")
+
+                        # --- Bind updates ---
+                        wing_wave.on('update:model-value', lambda e: update_wave_preview())
+                        amp_wave.on('update:model-value', lambda e: update_wave_preview())
+                        speed_wave.on('update:model-value', lambda e: update_wave_preview())
+                        reps_wave.on('update:model-value', lambda e: update_wave_preview())
+
+                        ui.button("Send Command", on_click=execute_wave).classes("mt-2")
+
+                        update_wave_preview()
+
+
                 def update_servo_ui(id, angle, status):
                     color = {
                         "ok": "green",
@@ -233,7 +479,7 @@ class MainPage:
 
                 # Command sender function
                 def send_servo_command(target=None, position=None):
-                    host = "http://192.168.1.42:5000"
+                    host = BASE_URL
                     target = target if target is not None else target_input.value
                     position = float(position) if position is not None else position_input.value
                     speed = speed_input.value
@@ -253,7 +499,7 @@ class MainPage:
         # --- Servo command function ---
     def send_servo(self, target, position):
         try:
-            url = f"http://192.168.1.42:5000/servo/{target}/position/{position}/method/instant/speed/1.0"
+            url = f"{BASE_URL}/servo/{target}/position/{position}/method/instant/speed/1.0"
             r = requests.post(url)
             ui.notify(f"{target} moved to {position}°")
         except Exception as e:
