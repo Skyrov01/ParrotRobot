@@ -53,9 +53,9 @@ def init_servos():
         if name in servos:
             servos[name].angle = angle
             last_angles[name] = angle
-            print(f"[INFO] Initialized {name} to {angle}°")
+            print(f"[DRIVER][INFO] Initialized {name} to {angle}°")
         else:
-            print(f"[WARN] Unknown servo: {name}")
+            print(f"[DRIVER][WARN] Unknown servo: {name}")
 
 # --- Movement Helpers ---
 def move_instant(servo, current, target, speed):
@@ -102,15 +102,15 @@ def _do_move(name, angle, method="instant", speed=1.0):
 # --- Public API ---
 def move_servo(name, angle, method="instant", speed=1.0, parallel=True):
     if name not in servos:
-        print(f"[WARN] Unknown servo: {name}")
+        print(f"[DRIVER][WARN] Unknown servo: {name}")
         return
 
     def task():
-        print(f"[INFO] Trying to move {name} to {angle} ({method}, speed={speed})")
+        print(f"[DRIVER][INFO] Trying to move {name} to {angle} ({method}, speed={speed})")
         with servo_locks[name]:
             print(f"[INFO] Moving {name} now...")
             _do_move(name, angle, method, speed)
-        print(f"[INFO] Finished moving {name}")
+        print(f"[DRIVER][INFO] Finished moving {name}")
         cleanup()
 
     print("Starting a servo task")
@@ -133,9 +133,9 @@ def move_selected_servos(configs):
             speed = cfg.get("speed", 1.0)
             move_servo(name, angle, method=method, speed=speed, parallel=True)
         else:
-            print(f"[WARN] Unknown servo: {name}")
+            print(f"[DRIVER][WARN] Unknown servo: {name}")
 
-    print(f"[INFO] Configured move for servos: {list(configs.keys())}")
+    print(f"[DRIVER][INFO] Configured move for servos: {list(configs.keys())}")
 
 
 # Move all servos in parallel to the same angle.
@@ -144,7 +144,7 @@ def move_all_servos(angle, method="instant", speed=1.0):
     for name in servos.keys():
         move_servo(name, angle, method=method, speed=speed, parallel=True)
 
-    print(f"[INFO] All servos commanded to {angle}° ({method}, speed={speed})")
+    print(f"[DRIVER][INFO] All servos commanded to {angle}° ({method}, speed={speed})")
 
 
 def reset_servos(method="instant", speed=1.0):
@@ -159,7 +159,7 @@ def reset_servos(method="instant", speed=1.0):
         else:
             print(f"[WARN] Unknown servo: {name}")
 
-    print(f"[INFO] All servos reset with method={method}, speed={speed}")
+    print(f"[DRIVER][INFO] All servos reset with method={method}, speed={speed}")
 
 def cleanup():
     for name, s in servos.items():
@@ -167,9 +167,9 @@ def cleanup():
             if s.value is not None:
                 
                 s.detach()
-                print(f"[CLEANUP] Detached servo: {name}")
+                print(f"[DRIVER][CLEANUP] Detached servo: {name}")
         except Exception as e:
-            print(f"[CLEANUP ERROR] Could not detach {name}: {e}")
+            print(f"[DRIVER][CLEANUP ERROR] Could not detach {name}: {e}")
 
 
 if __name__ == "__main__":

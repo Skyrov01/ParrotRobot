@@ -113,18 +113,3 @@ def servo_stream():
     return Response(gen(), headers=headers, mimetype="text/event-stream")
 
 
-# --------------------------------------------------------------------- # 
-#                          HIGH LEVEL ROUTES
-# --------------------------------------------------------------------- # 
-
-@servo_bp.route('/agree/amplitude/<float:amplitude>/speed/<float:speed>', methods=['POST'])
-def agree(amplitude, speed):
-    ros_node = context.get_ros_node()
-    if not ros_node:
-        return jsonify({"status": "ROS not ready"}), 503
-    msg = BehaviourCommand()
-    msg.behaviour_type = "agree"
-    msg.amplitude = amplitude
-    msg.speed = speed
-    ros_node.behaviour_pub.publish(msg)
-    return jsonify({"status": "agree command sent"})

@@ -17,6 +17,7 @@ rosidl_generate_interfaces(${PROJECT_NAME}
   "msg/SoundCommand.msg"
   "msg/ServoMotorMsg.msg"
   "msg/ServoMotorStatus.msg"
+  "msg/BehaviourCommand.msg"
   DEPENDENCIES std_msgs
 )
 

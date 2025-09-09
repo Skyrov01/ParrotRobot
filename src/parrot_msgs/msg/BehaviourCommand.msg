@@ -2,7 +2,8 @@
 string behaviour_type     # e.g. "agree", "disagree", "wave", "lookaround"
 
 # Generic numeric parameters
-float32 amplitude         # how far to move (degrees)
+
+string amplitude          # how far to move - low, medium, high
 float32 speed             # movement speed
 int32 repetitions         # for repetitive actions (e.g. wave)
 
