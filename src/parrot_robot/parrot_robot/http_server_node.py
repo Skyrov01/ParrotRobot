@@ -16,6 +16,8 @@ from parrot_msgs.msg import NodCommand, WingsCommand, SoundCommand
 from parrot_msgs.msg import ServoMotorMsg, ServoMotorStatus
 from parrot_msgs.msg import BehaviourCommand 
 
+from parrot_msgs.msg import BehaviourCommand 
+
 import threading
 
 from .routes import register_routes
@@ -102,6 +104,19 @@ class HTTPBridge(Node):
                 lock.release()
 
         Thread(target=run).start()
+
+    # Behaviour publisher function
+    def publish_behaviour(self, behaviour_type, amplitude="medium", speed=1.0, repetitions=0, target=""):
+        msg = BehaviourCommand()
+        msg.behaviour_type = behaviour_type
+        msg.amplitude = amplitude        # "low", "medium", "high"
+        msg.speed = float(speed)
+        msg.repetitions = int(repetitions)
+        msg.target = target
+        self.get_logger().info(
+            f"[HTTP] BehaviourCommand: type={behaviour_type}, amp={amplitude}, speed={speed}, reps={repetitions}, target={target}"
+        )
+        self.behaviour_pub.publish(msg)
 
     # Behaviour publisher function
     def publish_behaviour(self, behaviour_type, amplitude="medium", speed=1.0, repetitions=0, target=""):

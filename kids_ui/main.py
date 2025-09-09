@@ -13,6 +13,16 @@ from threading import Lock, Thread
 from style import *
 from script import *
 
+# Custom imports
+from ui_components import add_navigation
+from ui_components import behaviour_card
+from ui_components import robot_setup_card, advanced_control_card, servo_status_card, description_card
+
+from http_client import send_servo_command, send_behavior, cleanup
+from config import *
+
+from theme import *
+
 class RealTimeOutput:
     def __init__(self, output_box):
         self.output_box = output_box
@@ -32,7 +42,27 @@ for i in range(5):
     time.sleep(0.5)
 """
 
+AMPLITUDE_MAP = {
+        "low": 15,
+        "medium": 30,
+        "high": 60,
+    }
+
+
+BASE_URL = "http://192.168.8.42:5000"
+
+def generate_route_code(path_template: str, variables: dict):
+    
+    route = path_template
+    for key, value in variables.items():
+        route = route.replace(f"<{key}>", str(value))
+    full_url = f"{BASE_URL}/{route}"
+    code = f'requests.post("{full_url}")'
+    return route, code
+
 ui.add_css(style_parrot_control)
+ui.add_css(style_navbar)
+
 
 class MainPage:
     def __init__(self):
@@ -44,12 +74,25 @@ class MainPage:
         self.position_display = None
 
     def howto_section(self, title, command, description, topics):
-        with ui.expansion(title, icon='rocket', value=False).classes("w-full"):
+        with ui.expansion(title, icon="rocket", value=False).classes("w-full"):
             ui.code(command)
             ui.label(description).classes(f"mb-2 {self.subtext_color}")
             ui.label(f"Topics: {topics}").classes(f"mb-2 {self.subtext_color}")
 
     def create_ui(self):
+        ui.colors(
+            jungle=MAIN_COLOR,          # parrot green, main brand color
+            sunset=ACCENT_COLOR_1,      # bright red/orange, action/alert
+            sunrise=ACCENT_COLOR_2,     # warm yellow, highlight
+            feather=TEXT_COLOR,         # dark gray text
+            sky=WHITE,                  # off-white background
+            midnight=BLACK,             # black background
+            success="#00bf63",        # success green
+            danger="#e85642",         # error red
+            ocean="#3da9fc",          # info blue
+            sand="#fbce37",           # warning yellow
+        )
+
     
         with ui.column().style("padding: 0; gap: 0;").classes("w-full h-full"):
             with ui.card().classes("w-full"):
@@ -82,24 +125,23 @@ class MainPage:
 
                     def cleanup():
                         try:
-                            url = "http://192.168.1.42:5000/servo/cleanup"
+                            url = f"{BASE_URL}/servo/cleanup"
                             r = requests.post(url)
                             result = r.json()
                             ui.notify(result.get("status", "No response"))
                         except Exception as e:
                             ui.notify(f"Cleanup failed: {e}")
 
-                    ui.button("Run Code", on_click=run, color="red").classes()
-                    ui.button("Cleanup", on_click=cleanup, color="orange")
+                    ui.button("Run Code", on_click=run, color="jungle").classes()
+                    ui.button("Cleanup", on_click=cleanup, color="sunrise")
 
             with ui.card().classes("w-full mt-6"):
-                with ui.row().classes("w-full gap-1 no-wrap"):
-                    with ui.card().classes("w-1/2"):
-                        ui.label("Robot Setup Parameters").classes("text-lg font-bold")
-                        
-                    with ui.card().classes("w-1/2"):
-                        ui.label("Robot Description").classes("text-lg font-bold")
                 
+
+
+                with ui.row().classes("w-full gap-1 no-wrap"):
+                    robot_setup_card(lambda new=None: BASE_URL if new is None else globals().update(BASE_URL=new))
+            
                # Container for the parrot image and controls
                 ui.add_head_html(style_robot_controls_tailwind)
                 ui.add_head_html(script_status_servo)
@@ -107,111 +149,98 @@ class MainPage:
                 ui.add_body_html(script_robot_controls_tailwind)
 
                 def on_slider_change(target, e):
-                    
-                    self.position_display.value = f"Position: {e.value}°"
-                    self.position_display.update()   
+                    ui.notify("Slider changed", color="sunset")
                     send_servo_command(target=target, position=e.value)
-                    print(f"Slider changed to: {e.value}")  
                     
                 
-                with ui.element('div').classes('parrot-container w-full flex justify-center items-center relative'):
-                    with ui.card().classes('w-full h-full relative'):
+                with ui.element("div").classes("parrot-container w-full flex justify-center items-center relative"):
+                    with ui.card().classes("w-full h-full relative"):
+
+                        def servo_status_circle(id, angle, top, left, insert=True):
+                            circle = ui.element("div").classes("hotspot").style(f"top: {top}px; left: {left}px;") \
+                                .classes(
+                                    "rounded-full w-10 h-10 flex items-center justify-center text-white "
+                                    "font-bold text-sm border-4 border-white shadow-md transition-all"
+                                ).style("background-color: gray;").props(f"id={id}")
+                            if not insert:
+                                circle.classes("invisible hotspot")
+                            return circle
+                        
                         # Robot parrot interactive control
-                        ui.label("Control the Parrot Robot").classes("text-lg font-bold")
-                        with ui.element('div').classes('relative mx-auto').style('width: 500px; height: 500px;'):
-                            ui.image('static/images/parrot_robot.png').classes('absolute w-full h-full object-contain')
+                        ui.label("Manual Control").classes("text-lg font-bold")
+                        with ui.element("div").classes("relative mx-auto").style("width: 500px; height: 500px;"):
+                            ui.image("static/images/parrot_robot.png").classes("absolute w-full h-full object-contain")
 
                             # === HEAD ===
-                            ui.element('div').classes('hotspot').style('top: 90px; left: 250px;').props('id=head_circle')
-                            with ui.element('div').classes('popup').style('top: -20px; left: 280px;').props('id=head_popup'):
-                                ui.label('Head Rotate')
-                                head_slider = ui.slider(min=10, max=170, value=90, step=1, on_change=lambda e: on_slider_change("head_rotate", e)).props('label-always')
-                                # ui.button('Send', on_click=lambda: self.send_servo('head_rotate', head_slider.value))
+                            servo_status_circle("servo_head_rotate", 90, 90, 220)
+                            # ui.element("div").classes("hotspot").style("top: 90px; left: 250px;").props("id=head_circle")
+                            with ui.element("div").classes("popup").style("top: -20px; left: 280px;").props("id=head_popup"):
+                                ui.label("Head Rotate")
+                                head_slider = ui.slider(min=10, max=170, value=90, step=1, on_change=lambda e: on_slider_change("head_rotate", e)).props("label-always")
+                                # ui.button("Send", on_click=lambda: self.send_servo("head_rotate", head_slider.value))
 
-                            ui.element('div').classes('hotspot').style('top: 230px; left: 200px;').props('id=tilt_circle')
-                            with ui.element('div').classes('popup').style('top: 280px; left: 150px;').props('id=tilt_popup'):
-                                ui.label('Head Tilt')
-                                head_slider = ui.slider(min=10, max=170, value=90, step=1,on_change=lambda e: on_slider_change("head_tilt", e)).props('label-always')
+                            servo_status_circle("servo_head_tilt", 90, 230, 220)
+                            with ui.element("div").classes("popup").style("top: 280px; left: 150px;").props("id=tilt_popup"):
+                                ui.label("Head Tilt")
+                                head_slider = ui.slider(min=10, max=170, value=90, step=1,on_change=lambda e: on_slider_change("head_tilt", e)).props("label-always")
 
                             # === LEFT WING ===
-                            ui.element('div').classes('hotspot').style('top: 220px; left: 90px;').props('id=left_circle')
-                            with ui.element('div').classes('popup').style('top: 260px; left: -150px;').props('id=left_popup'):
-                                ui.label('Left Wing')
-                                left_slider = ui.slider(min=10, max=170, value=90, step=1, on_change=lambda e: on_slider_change("left_wing", e)).props('label-always')
-                                # ui.button('Send', on_click=lambda: self.send_servo('left_wing', left_slider.value))
+                            servo_status_circle("servo_left_wing", 90, 220, 70)
+                            with ui.element("div").classes("popup").style("top: 260px; left: -150px;").props("id=left_popup"):
+                                ui.label("Left Wing")
+                                left_slider = ui.slider(min=10, max=170, value=90, step=1, on_change=lambda e: on_slider_change("left_wing", e)).props("label-always")
+                                # ui.button("Send", on_click=lambda: self.send_servo("left_wing", left_slider.value))
 
                             # === RIGHT WING ===
-                            ui.element('div').classes('hotspot').style('top: 220px; left: 380px;').props('id=right_circle')
-                            with ui.element('div').classes('popup').style('top: 260px; left: 400px;').props('id=right_popup'):
-                                ui.label('Right Wing')
-                                right_slider = ui.slider(min=10, max=170, value=90, step=1, on_change=lambda e: on_slider_change("right_wing", e)).props('label-always')
-                                # ui.button('Send', on_click=lambda: self.send_servo('right_wing', right_slider.value))
+                            servo_status_circle("servo_right_wing", 90, 220, 370)
+                            with ui.element("div").classes("popup").style("top: 260px; left: 400px;").props("id=right_popup"):
+                                ui.label("Right Wing")
+                                right_slider = ui.slider(min=10, max=170, value=90, step=1, on_change=lambda e: on_slider_change("right_wing", e)).props("label-always")
+                                # ui.button("Send", on_click=lambda: self.send_servo("right_wing", right_slider.value))
+
+                            
+                
 
                 with ui.card().classes("w-full mt-6"):
 
-                    # === Advanced Control Card ===
-                    with ui.row().classes("w-full gap-1 no-wrap"):
-
-                        with ui.card().classes('w-full md:w-1/2'):
-                            ui.label("Advanced Control").classes("text-lg font-bold")
-                            
-                            with ui.row().classes("flex-nowrap items-end gap-2 overflow-hidden w-full"):
-                                target_input = ui.select(
-                                    ["head_rotate", "head_tilt", "left_wing", "right_wing"],
-                                    value="head_rotate", label="Servo"
-                                ).classes("w-full md:w-1/2")
-
-                                position_input = ui.number("Position", value=90.0, format="%.1f").classes("w-1/6 md:w-1/2")
-
-                                method_input = ui.select(["instant", "ease", "linear"], value="instant", label="Method").classes("w-1/5 md:w-1/2")
-
-                                speed_input = ui.number("Speed", value=1.0, format="%.1f").classes("w-1/5 md:w-1/2")
-
-                                ui.button("Send", on_click=lambda: send_servo_command()).classes("w-1/5 md:w-1/3 mt-2")
-
-                                
-
-                            # Live position display
-                            self.position_display = ui.label("Position: 90.0°").classes("text-lg font-bold")
-                            
-                            output_area = ui.textarea(label="Response").classes("w-full h-32")
-                            output_area.value = "Output will be displayed here"
                         
-                        with ui.card().classes("w-full md:w-1/2 h-full"):
-                            ui.label("Servo Status").classes("text-lg font-bold")
-                            # Container for + pattern layout
-                            with ui.element("div").classes("grid grid-cols-3 grid-rows-3 gap-2 w-full max-w-xs mx-auto place-items-center"):
+                    with ui.row().classes("w-full gap-1 no-wrap"):
+                        output_area = advanced_control_card()
+                        
 
-                                def servo_status_circle(id, angle, insert=True):
-                                    circle = ui.label(str(angle)).props(f"id={id}") \
-                                        .classes(
-                                            "rounded-full w-16 h-16 flex items-center justify-center text-white "
-                                            "font-bold text-sm border-4 border-white shadow-md transition-all"
-                                        ).style("background-color: gray;")
-                                    if not insert:
-                                        circle.classes("invisible")
-                                    return circle
+                # -------------------------- Predefined Motions -----------------------------
 
-                                # Row 1: [empty, head tilt, empty]
-                                servo_status_circle(None, "", insert=False)
-                                servo_status_circle("servo_head_rotate", 90)
-                                servo_status_circle(None, "", insert=False)
+                # Agree Card
+                with ui.row().classes("w-full gap-1 no-wrap"):
+                    # Agree
+                    behaviour_card(
+                        "Agree",
+                        lambda amp, speed, reps: f"/agree/amplitude/{amp}/speed/{speed}/repetitions/{reps}",
+                        defaults={"amp": "medium", "speed": 1.0, "reps": 1},
+                    )
 
-                                # Row 2: [left wing, empty, right wing]
-                                servo_status_circle("servo_left_wing", 170)
-                                servo_status_circle(None, "", insert=False)
-                                servo_status_circle("servo_right_wing", 5)
+                    # Disagree
+                    behaviour_card(
+                        "Disagree",
+                        lambda amp, speed, reps: f"/disagree/amplitude/{amp}/speed/{speed}/repetitions/{reps}",
+                        defaults={"amp": "medium", "speed": 1.0, "reps": 1},
+                    )
 
-                                # Row 3: [empty, head rotate, empty]
-                                servo_status_circle(None, "", insert=False)
-                                servo_status_circle("servo_head_tilt", 90)
-                                servo_status_circle(None, "", insert=False)
+                with ui.row().classes("w-full gap-1 no-wrap"):
+                    # Maybe (Indifference)
+                    behaviour_card(
+                        "Maybe",
+                        lambda amp, speed, reps: f"/maybe/amplitude/{amp}/speed/{speed}/repetitions/{reps}",
+                        defaults={"amp": "medium", "speed": 1.0, "reps": 1},
+                    )
 
-                            ui.run_javascript("updateServoStatus('servo_head_tilt', 45, 'moving')")
-                            ui.run_javascript("updateServoStatus('servo_right_wing', 0, 'ok')")
-                      
-                    
-                    # position_slider = ui.slider(min=10, max=170, value=90, step=1, on_change=on_slider_change)
+                    # Wave
+                    behaviour_card(
+                        "Wave",
+                        lambda wing, amp, speed, reps: f"/wave/{wing}/amplitude/{amp}/speed/{speed}/repetitions/{reps}",
+                        defaults={"wing": "left_wing", "amp": "medium", "speed": 1.0, "reps": 3},
+                        include_wing=True,
+                    )
 
 
                 def update_servo_ui(id, angle, status):
@@ -220,49 +249,38 @@ class MainPage:
                         "moving": "orange",
                         "error": "red"
                     }.get(status, "gray")
-                    ui.run_javascript(f'''
-                        const el = document.getElementById('{id}');
+                    ui.run_javascript(f"""
+                        const el = document.getElementById("{id}");
                         if (el) {{
-                            el.innerText = '{angle}';
-                            el.style.backgroundColor = '{color}';
+                            el.innerText = "{angle}";
+                            el.style.backgroundColor = "{color}";
                         }}
-                    ''')
-
-                    # # Manual trigger button (in case you want to send explicitly)
-                    # ui.button("Send Command", on_click=lambda: send_servo_command()).classes("mt-4")
-
-                # Command sender function
-                def send_servo_command(target=None, position=None):
-                    host = "http://192.168.1.42:5000"
-                    target = target if target is not None else target_input.value
-                    position = float(position) if position is not None else position_input.value
-                    speed = speed_input.value
-                    method = method_input.value
-
-                    url = f"{host}/servo/{target}/position/{position}/method/{method}/speed/{speed}"
-
-                    try:
-                        r = requests.post(url)
-                        data = r.json()
-                        output_area.value = f"✅ Success:\n{data}"
-                        ui.notify("Command sent!")
-                    except Exception as e:
-                        output_area.value = f"❌ Error:\n{e}"
-                        ui.notify("Failed to send command")
-
-        # --- Servo command function ---
-    def send_servo(self, target, position):
-        try:
-            url = f"http://192.168.1.42:5000/servo/{target}/position/{position}/method/instant/speed/1.0"
-            r = requests.post(url)
-            ui.notify(f"{target} moved to {position}°")
-        except Exception as e:
-            ui.notify(f"Error: {e}")
+                    """)
 
 
 @ui.page("/")
 def main(client: Client):
+    add_navigation(current="/") 
     MainPage().create_ui()
 
+@ui.page("/editor")
+def editor_page(client: Client):
+    add_navigation(current="/editor")
+    ui.label("Python Code Editor Here")
 
-ui.run(title="Papegaai", favicon='🦜', port=8080, reload=True)
+@ui.page("/control")
+def control_page(client: Client):
+    add_navigation(current="/control")
+    ui.label("Parrot Robot Control Interface")
+
+@ui.page("/docs")
+def documentation_page(client: Client):
+    add_navigation(current="/docs")
+    ui.label("Robot Documentation Page")
+
+@ui.page("/settings")
+def settings_page(client: Client):
+    add_navigation(current="/settings")
+    ui.label("Robot Settings Page")
+
+ui.run(title="Papegaai", favicon="🦜", port=8080, reload=True)

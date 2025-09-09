@@ -7,12 +7,18 @@ from rclpy.node import Node
 from parrot_msgs.msg import ServoMotorMsg, ServoMotorStatus
 from std_msgs.msg import String 
 
-
+from parrot_msgs.msg import BehaviourCommand
 from parrot_msgs.msg import WingsCommand 
 from parrot_msgs.msg import BehaviourCommand
 
 import parrot_robot.servo_driver as servo
 
+# For behaviour amplitude movement mapping - basically how far to move when executing a behaviour command
+AMPLITUDE_MAP = {
+        "low": 15,
+        "medium": 30,
+        "high": 60,
+    }
 
 class ParrotNode(Node):
     def __init__(self):
@@ -60,6 +66,13 @@ class ParrotNode(Node):
             "left_wing": "Ease-In-Out",
             "right_wing": "Ease-In-Out",
         }
+
+        self.create_subscription(
+            BehaviourCommand,
+            "/behaviour_cmd",
+            self.behaviour_callback,
+            10
+        )
 
 
     def _publish_status(self, target, commanded, method, speed, status, saturated=False, fault=False, message=""):
@@ -266,7 +279,9 @@ class ParrotNode(Node):
 
         for i in range(repetitions):
             servo.move_servo(servo_name, up, method="instant", speed=speed)
+            servo.move_servo(servo_name, up, method="instant", speed=speed)
             time.sleep(0.4)
+            servo.move_servo(servo_name, down, method="instant", speed=speed)
             servo.move_servo(servo_name, down, method="instant", speed=speed)
             time.sleep(0.4)
 
