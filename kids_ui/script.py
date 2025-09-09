@@ -13,10 +13,10 @@ window.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    document.getElementById('head_circle')?.addEventListener('click', () => togglePopup('head_popup'));
-    document.getElementById('left_circle')?.addEventListener('click', () => togglePopup('left_popup'));
-    document.getElementById('right_circle')?.addEventListener('click', () => togglePopup('right_popup'));
-    document.getElementById('tilt_circle')?.addEventListener('click', () => togglePopup('tilt_popup'));
+    document.getElementById('servo_head_rotate')?.addEventListener('click', () => togglePopup('head_popup'));
+    document.getElementById('servo_left_wing')?.addEventListener('click', () => togglePopup('left_popup'));
+    document.getElementById('servo_right_wing')?.addEventListener('click', () => togglePopup('right_popup'));
+    document.getElementById('servo_head_tilt')?.addEventListener('click', () => togglePopup('tilt_popup'));
 });
 </script>
 
@@ -59,7 +59,7 @@ function updateServoStatus(id, angle, status) {
   }
 
   function connect(){
-    const es = new EventSource("http://192.168.1.42:5000/servo/stream");
+    const es = new EventSource("http://192.168.8.42:5000/servo/stream");
     es.onmessage = (evt) => {
       const data = JSON.parse(evt.data);
       if (data.snapshot) {

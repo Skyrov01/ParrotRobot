@@ -55,3 +55,22 @@ style_robot_controls_tailwind = '''
     }
 </style>
 '''
+
+
+style_navbar = """
+<style>
+.nav-home {
+    position: relative;
+    background-color: white;
+    color: #2F2F2F;
+    transition: all 0.3s ease-in-out;
+}
+
+.nav-home:hover {
+    background-image: url('/static/images/namibia.png');
+    background-size: cover;
+    background-position: center;
+    color: white; /* Text turns white on flag */
+}
+</style>
+"""
