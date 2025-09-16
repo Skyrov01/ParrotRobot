@@ -16,6 +16,8 @@ from parrot_msgs.msg import NodCommand, WingsCommand, SoundCommand
 from parrot_msgs.msg import ServoMotorMsg, ServoMotorStatus
 from parrot_msgs.msg import BehaviourCommand 
 
+from parrot_msgs.msg import BehaviourCommand 
+
 import threading
 
 from .routes import register_routes
@@ -34,6 +36,7 @@ class HTTPBridge(Node):
     def __init__(self):
         super().__init__('http_server_node')
         self.servo_pub = self.create_publisher(ServoMotorMsg, '/servo_cmd', 10)
+        self.sound_pub = self.create_publisher(SoundCommand, '/sound_cmd', 10)
 
         # Beahviours, being complext actions, you will run only one at a time.
         self.behaviour_pub = self.create_publisher(BehaviourCommand, '/behaviour_cmd', 10)
@@ -51,6 +54,8 @@ class HTTPBridge(Node):
 
         for name in self.servo_locks.keys():
             self.create_subscription(ServoMotorStatus, f"/servo/status/{name}", self._status_cb, 10)
+
+        
            
 
     def _status_cb(self, msg: ServoMotorStatus):
@@ -99,6 +104,19 @@ class HTTPBridge(Node):
                 lock.release()
 
         Thread(target=run).start()
+
+    # Behaviour publisher function
+    def publish_behaviour(self, behaviour_type, amplitude="medium", speed=1.0, repetitions=0, target=""):
+        msg = BehaviourCommand()
+        msg.behaviour_type = behaviour_type
+        msg.amplitude = amplitude        # "low", "medium", "high"
+        msg.speed = float(speed)
+        msg.repetitions = int(repetitions)
+        msg.target = target
+        self.get_logger().info(
+            f"[HTTP] BehaviourCommand: type={behaviour_type}, amp={amplitude}, speed={speed}, reps={repetitions}, target={target}"
+        )
+        self.behaviour_pub.publish(msg)
 
     # Behaviour publisher function
     def publish_behaviour(self, behaviour_type, amplitude="medium", speed=1.0, repetitions=0, target=""):

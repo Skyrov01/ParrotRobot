@@ -9,6 +9,7 @@ from std_msgs.msg import String
 
 from parrot_msgs.msg import BehaviourCommand
 from parrot_msgs.msg import WingsCommand 
+from parrot_msgs.msg import BehaviourCommand
 
 import parrot_robot.servo_driver as servo
 
@@ -29,7 +30,12 @@ class ParrotNode(Node):
         # Set initial positions
         servo.init_servos()
         self.state_pubs = {}
-
+        
+        self.AMPLITUDE_MAP = {
+            "low": 15,
+            "medium": 30,
+            "high": 60,
+        }
 
 
         self.get_logger().info("Performing servo setup check.")
@@ -48,7 +54,7 @@ class ParrotNode(Node):
         
 
         # High level commands
-        # self.create_subscription(BehaviourCommand, "/behaviour_cmd", self.behaviour_callback, 10)
+        self.create_subscription(BehaviourCommand, "/behaviour_cmd", self.behaviour_callback, 10)
         self.create_subscription(WingsCommand, "/wings_cmd", self.wings_callback, 10)
 
         self._locks = {t: threading.Lock() for t in ["head_rotate", "head_tilt", "left_wing", "right_wing"]}
@@ -132,23 +138,19 @@ class ParrotNode(Node):
 
     def behaviour_callback(self, msg: BehaviourCommand):
         btype = msg.behaviour_type.lower()
-        amp_deg = self.AMPLITUDE_MAP.get(msg.amplitude.lower(), 30)
-
-        self.get_logger().info(
-            f"[Behaviour] {btype} amp={msg.amplitude}({amp_deg}°) "
-            f"speed={msg.speed}, reps={msg.repetitions}, target={msg.target}"
-        )
+        self.get_logger().info("# ------------------------------------------------- #")
+        self.get_logger().info(f"[Behaviour] {btype} with amp={msg.amplitude}, speed={msg.speed}, reps={msg.repetitions}, target={msg.target}")
 
         if btype == "agree":
-            self._do_agree(amp_deg, msg.speed, msg.repetitions)
+            self._do_agree(msg.amplitude, msg.speed, msg.repetitions)
         elif btype == "disagree":
-            self._do_disagree(amp_deg, msg.speed, msg.repetitions)
+            self._do_disagree(msg.amplitude, msg.speed, msg.repetitions)
         elif btype == "wave":
-            self._do_wave(msg.target, msg.repetitions, amp_deg, msg.speed)
+            self._do_wave(msg.target, msg.repetitions, msg.amplitude, msg.speed)
         elif btype == "lookaround":
-            self._do_lookaround(msg.speed)
+            self._do_lookaround(msg.speed, msg.repetitions)
         else:
-            self.get_logger().warn(f"Unknown behaviour: {btype}")
+            self.get_logger().warn(f"Unknown behaviour type: {btype}")
 
     def wings_callback(self, msg: WingsCommand):
         self.get_logger().info(
@@ -199,14 +201,20 @@ class ParrotNode(Node):
         else:
             self.get_logger().warn(f"Unknown servo target in method topic: {target}")
 
-    # TODO: Implement these
-    def _do_agree(self, amplitude: float, speed: float, repetitions: int = 1):
-        center = 90
-        up = center - amplitude
-        down = center + amplitude
 
+    def _get_amplitude_deg(self, amplitude: str) -> int:
+        return self.AMPLITUDE_MAP.get(amplitude.lower(), 30)
+
+    def _do_agree(self, amplitude: str, speed: float, repetitions: int):
+        """Nod head up–down and lift wings once (agreement)."""
+        amp = self._get_amplitude_deg(amplitude)
+        center = 90
+        up = center - amp
+        down = center + amp
+        self.get_logger().info(f"{repetitions}")
         for i in range(repetitions):
-            # Nod head
+            # Nod head (tilt)
+            self.get_logger().info(f"Nodding {i}: down={down}, up={up}, center={center}")
             servo.move_servo("head_tilt", down, method="instant", speed=speed)
             time.sleep(0.4)
             servo.move_servo("head_tilt", up, method="instant", speed=speed)
@@ -214,20 +222,23 @@ class ParrotNode(Node):
             servo.move_servo("head_tilt", center, method="instant", speed=speed)
             time.sleep(0.4)
 
-            # Wing lift (once per nod)
+            # Wing lift
             servo.move_servo("left_wing", 45, method="instant", speed=speed)
             servo.move_servo("right_wing", 135, method="instant", speed=speed)
             time.sleep(0.4)
             servo.move_servo("left_wing", 170, method="instant", speed=speed)
             servo.move_servo("right_wing", 5, method="instant", speed=speed)
 
+
         servo.cleanup()
 
 
-    def _do_disagree(self, amplitude: float, speed: float, repetitions: int = 1):
+    def _do_disagree(self, amplitude: str, speed: float, repetitions: int = 1):
+        """Shake head left–right and flap wings (disagreement)."""
+        amp = self._get_amplitude_deg(amplitude)
         center = 90
-        left = center - amplitude
-        right = center + amplitude
+        left = center - amp
+        right = center + amp
 
         for i in range(repetitions):
             # Shake head
@@ -238,7 +249,7 @@ class ParrotNode(Node):
             servo.move_servo("head_rotate", center, method="instant", speed=speed)
             time.sleep(0.4)
 
-            # Wing emphasis (once per shake)
+            # Wing emphasis
             servo.move_servo("left_wing", 45, method="instant", speed=speed)
             servo.move_servo("right_wing", 135, method="instant", speed=speed)
             time.sleep(0.4)
@@ -247,41 +258,47 @@ class ParrotNode(Node):
 
         servo.cleanup()
 
-    def _do_maybe(self, amplitude: float, speed: float, repetitions: int = 1):
-        
-        pass
 
-
-    def _do_wave(self, wing: str, repetitions: int, amplitude: float, speed: float):
+    def _do_wave(self, wing: str, repetitions: int, amplitude: str, speed: float):
+        """Wave one wing up and down like saying hello."""
         if wing not in ["left", "right"]:
             self.get_logger().warn(f"Invalid wing: {wing}")
             return
 
+        amp = self._get_amplitude_deg(amplitude)
         servo_name = f"{wing}_wing"
+
         if wing == "left":
-            start = 170
-            up = start - amplitude
+            start = 170   # default down
+            up = start - amp
             down = start
         else:
-            start = 5
-            up = start + amplitude
+            start = 5    # default down
+            up = start + amp
             down = start
 
         for i in range(repetitions):
             servo.move_servo(servo_name, up, method="instant", speed=speed)
+            servo.move_servo(servo_name, up, method="instant", speed=speed)
             time.sleep(0.4)
+            servo.move_servo(servo_name, down, method="instant", speed=speed)
             servo.move_servo(servo_name, down, method="instant", speed=speed)
             time.sleep(0.4)
 
         servo.cleanup()
 
-    def _do_lookaround(self, speed: float):
+
+    def _do_lookaround(self, speed: float, repetitions: int = 1):
+
         """Rotate head left–right–center (scanning)."""
-        servo.move_servo("head_rotate", 30, method="ease", speed=speed)
-        time.sleep(0.6)
-        servo.move_servo("head_rotate", 150, method="ease", speed=speed)
-        time.sleep(0.6)
-        servo.move_servo("head_rotate", 90, method="ease", speed=speed)
+        self.get_logger().info(f"Lookaround with speed={speed}, repetitions={repetitions}")
+        for i in range(repetitions):
+            self.get_logger().info(f"Lookaround iteration {i+1}")
+            servo.move_servo("head_rotate", 30, method="instant", speed=speed)
+            time.sleep(0.6)
+            servo.move_servo("head_rotate", 150, method="instant", speed=speed)
+            time.sleep(0.6)
+            servo.move_servo("head_rotate", 90, method="instant", speed=speed)
 
         servo.cleanup()
 

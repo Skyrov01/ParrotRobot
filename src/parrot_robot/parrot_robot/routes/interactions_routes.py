@@ -1,5 +1,5 @@
 from flask import Flask, request, Response, jsonify, Blueprint
-import context
+from . import context 
 
 interactions_bp = Blueprint("interactions", __name__)
 
@@ -19,23 +19,27 @@ def nod_route(speed, count):
 #                          HIGH LEVEL ROUTES
 # --------------------------------------------------------------------- #
 
-@interactions_bp.route('/agree/amplitude/<amplitude>/speed/<float:speed>/repetitions<int:repetitions>', methods=['POST'])
-def agree(amplitude, speed, repetitions):
+@interactions_bp.route('/agree/amplitude/<amplitude>/speed/<float:speed>/repetitions/<int:repetitions>', methods=['POST'])
+def agree_route(amplitude, speed, repetitions):
     ros_node = context.get_ros_node()
     if not ros_node:
         return jsonify({"status": "ROS not ready"}), 503
 
-    ros_node.publish_behaviour("agree", amplitude=amplitude, speed=speed, repetitions=repetitions)
+    ros_node.publish_behaviour(
+        behaviour_type="agree",
+        amplitude=amplitude,   # string: low | medium | high
+        speed=speed,
+        repetitions=repetitions
+    )
 
     return jsonify({
-        "status": "agree command published", 
-        "amplitude": amplitude, 
+        "status": "agree command published",
+        "amplitude": amplitude,
         "speed": speed,
         "repetitions": repetitions
-        })
-
-
-@interactions_bp.route('/disagree/amplitude/<amplitude>/speed/<float:speed>/repetitions<int:repetitions>', methods=['POST'])
+    })
+    
+@interactions_bp.route('/disagree/amplitude/<amplitude>/speed/<float:speed>/repetitions/<int:repetitions>', methods=['POST'])
 def disagree(amplitude, speed, repetitions):
     """Shake head left–right and lift wings to show disagreement"""
     ros_node = context.get_ros_node()
@@ -58,8 +62,8 @@ def disagree(amplitude, speed, repetitions):
         "repetitions": repetitions
     })
 
-@interactions_bp.route('/maybe/amplitude/<amplitude>/speed/<float:speed>/repetitions<int:repetitions>', methods=['POST'])
-def disagree(amplitude, speed, repetitions):
+@interactions_bp.route('/maybe/amplitude/<amplitude>/speed/<float:speed>/repetitions/<int:repetitions>', methods=['POST'])
+def maybe(amplitude, speed, repetitions):
     """Shake head left–right and lift wings to show maybe"""
     ros_node = context.get_ros_node()
     if not ros_node:
@@ -99,9 +103,8 @@ def wave(wing, amplitude, speed, repetitions):
         })
 
 
-@interactions_bp.route('/lookaround/speed/<float:speed>', methods=['POST'])
-def lookaround(speed):
-    """Rotate head left–right–center like scanning the room"""
+@interactions_bp.route('/lookaround/speed/<float:speed>/repetitions/<int:repetitions>', methods=['POST'])
+def lookaround(speed, repetitions):
     ros_node = context.get_ros_node()
     if not ros_node:
         return jsonify({"status": "ROS not ready"}), 503
@@ -109,7 +112,8 @@ def lookaround(speed):
     # Publish behaviour command
     ros_node.publish_behaviour(
         behaviour_type="lookaround",
-        speed=speed
+        speed=speed,
+        repetitions=repetitions
     )
 
     return jsonify({

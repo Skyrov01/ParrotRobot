@@ -1,6 +1,8 @@
 from setuptools import setup
 from setuptools import find_packages
 package_name = "parrot_robot"
+import os
+from glob import glob
 
 setup(
     name=package_name,
@@ -11,6 +13,7 @@ setup(
          ["resource/" + package_name]),
         ("share/" + package_name, ["package.xml"]),
         ("share/" + package_name + "/launch", ["launch/bringup.launch.py"]),
+        (os.path.join('share', package_name, 'launch'), glob('launch/*.py')),
     ],
     install_requires=["setuptools"],
     zip_safe=True,
