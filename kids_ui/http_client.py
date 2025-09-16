@@ -1,6 +1,6 @@
 import requests
 
-BASE_URL = "http://192.168.8.42:5000"
+BASE_URL = "http://192.168.8.190:5000"
 
 def send_servo_command(target, position, method="instant", speed=1.0):
     url = f"{BASE_URL}/servo/{target}/position/{position}/method/{method}/speed/{speed}"

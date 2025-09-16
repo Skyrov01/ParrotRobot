@@ -6,7 +6,7 @@ from http_client import send_behavior
 from http_client import send_servo_command, cleanup
 from theme import MAIN_COLOR, ACCENT_COLOR_1, ACCENT_COLOR_2, TEXT_COLOR, WHITE, BLACK, FLAG_IMAGE
 
-
+BASE_URL = "http://192.168.8.190:5000"
 # Navigation bar 
 
 def add_navigation(dark_mode: bool = False, current: str = ""):
@@ -67,6 +67,7 @@ def description_card():
             ui.label("It can perform behaviours such as Agree, Disagree, Wave, and Look Around.")
 
 
+
 def behaviour_card(name: str, route_builder, defaults: dict = None, include_wing=False):
     """
     A themed reusable card for predefined behaviours (Agree, Disagree, Maybe, Wave).
@@ -118,7 +119,8 @@ def behaviour_card(name: str, route_builder, defaults: dict = None, include_wing
             else:
                 route = route_builder(amp.value, speed.value, int(reps.value))
 
-            full_code = f'requests.post("{route}")'
+            full_code = f'requests.post(f"{{{BASE_URL}}}{route}")'
+
             route_label.text = f"Route: {route}"
             code_box.value = full_code
             return route
@@ -139,7 +141,7 @@ def behaviour_card(name: str, route_builder, defaults: dict = None, include_wing
         speed.on('update:model-value', lambda e: update_preview())
         reps.on('update:model-value', lambda e: update_preview())
 
-        ui.button("Send Command", on_click=execute).classes("mt-4 font-bold").props("color=sunrise")
+        ui.button("Send Command", on_click=execute).classes("mt-4 font-bold").props("color=jungle")
 
         # Initialize preview
         update_preview()
