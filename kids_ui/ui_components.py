@@ -1,12 +1,12 @@
 # ui_components.py
-from nicegui import ui
+from nicegui import ui, app
 
 from http_client import send_behavior
 
 from http_client import send_servo_command, cleanup
 from theme import MAIN_COLOR, ACCENT_COLOR_1, ACCENT_COLOR_2, TEXT_COLOR, WHITE, BLACK, FLAG_IMAGE
 
-BASE_URL = "http://192.168.8.190:5000"
+BASE_URL = "http://192.168.8.120:5000"
 # Navigation bar 
 
 def add_navigation(dark_mode: bool = False, current: str = ""):
@@ -119,7 +119,7 @@ def behaviour_card(name: str, route_builder, defaults: dict = None, include_wing
             else:
                 route = route_builder(amp.value, speed.value, int(reps.value))
 
-            full_code = f'requests.post(f"{{{BASE_URL}}}{route}")'
+            full_code = f'requests.post(f"{{{app.storage.user["robot_ip"]}}}{route}")'
 
             route_label.text = f"Route: {route}"
             code_box.value = full_code
@@ -157,10 +157,15 @@ def robot_setup_card(base_url_ref):
         def update_base_url():
             new_url = base_url_input.value
             base_url_ref(new_url)
+
+            # Save the IP to persistent storage
+            app.storage.user["robot_ip"] = new_url
+
             ui.notify(f"✅ BASE_URL updated to {new_url}")
 
         base_url_input.on('blur', lambda e: update_base_url())
         base_url_input.on('keydown.enter', lambda e: update_base_url())
+        ui.button("Save IP", on_click=update_base_url, color="jungle").classes("mt-2")
 
 
 # -------------------- Advanced Control Card --------------------
@@ -186,6 +191,7 @@ def advanced_control_card():
 
         def send():
             data = send_servo_command(
+                base_url=app.storage.user.get["robot_ip"], 
                 target=target_input.value,
                 position=position_input.value,
                 method=method_input.value,

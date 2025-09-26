@@ -16,7 +16,7 @@ import signal
 import requests
 import threading
 
-BASE_URL = "http://192.168.8.190:5000"
+BASE_URL = "http://192.168.8.120:5000"
 
 
 running_process = None

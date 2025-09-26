@@ -1,17 +1,16 @@
 import requests
 
-BASE_URL = "http://192.168.8.190:5000"
 
-def send_servo_command(target, position, method="instant", speed=1.0):
-    url = f"{BASE_URL}/servo/{target}/position/{position}/method/{method}/speed/{speed}"
+def send_servo_command(target, base_url, position, method="instant", speed=1.0):
+    url = f"{base_url}/servo/{target}/position/{position}/method/{method}/speed/{speed}"
     return _post(url)
 
-def send_behavior(route):
-    url = f"{BASE_URL}{route}"
+def send_behavior(base_url, route):
+    url = f"{base_url}{route}"
     return _post(url)
 
-def cleanup():
-    url = f"{BASE_URL}/servo/cleanup"
+def cleanup(base_url):
+    url = f"{base_url}/servo/cleanup"
     return _post(url)
 
 def _post(url):

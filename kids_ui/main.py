@@ -5,6 +5,7 @@ from nicegui import Client, app, ui
 import threading
 import sys
 import time
+import os
 
 import requests
 from threading import Lock, Thread
@@ -25,10 +26,14 @@ from config import *
 
 from theme import *
 
+from dotenv import load_dotenv
+
+load_dotenv()
+
+COOKIE_PRIVATE_KEY = os.getenv("COOKIE_PRIVATE_KEY")
 
 
-
-BASE_URL = "http://192.168.8.190:5000"
+BASE_URL = "http://192.168.8.120:5000" # Default IP address of the robot
 
 def generate_route_code(path_template: str, variables: dict):
     
@@ -92,7 +97,7 @@ class MainPage:
 
                 def on_slider_change(target, e):
                     ui.notify("Slider changed", color="sunset")
-                    send_servo_command(target=target, position=float(e.value))
+                    send_servo_command(base_url=app.storage.user.get["robot_ip"], target=target, position=float(e.value))
                     
                 
                 with ui.element("div").classes("parrot-container w-full flex justify-center items-center relative"):
@@ -204,6 +209,8 @@ class MainPage:
 def main(client: Client):
     add_navigation(current="/") 
     MainPage().create_ui()
+    app.storage.user["robot_ip"] = BASE_URL
+
 
 @ui.page("/editor")
 def editor_page(client: Client):
@@ -225,4 +232,4 @@ def settings_page(client: Client):
     add_navigation(current="/settings")
     ui.label("Robot Settings Page")
 
-ui.run(title="Papegaai", favicon="🦜", port=8080, reload=True)
+ui.run(title="Papegaai", favicon="🦜", port=8080, reload=True, storage_secret=COOKIE_PRIVATE_KEY)
