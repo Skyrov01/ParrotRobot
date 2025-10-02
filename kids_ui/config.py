@@ -1,4 +1,4 @@
-BASE_URL = "http://192.168.8.42:5000"
+BASE_URL = "http://192.168.8.120:5000"
 
 AMPLITUDE_MAP = {
     "low": 15,
