@@ -38,27 +38,28 @@ def stop_sound():
 # --- List available sounds ---
 @sound_bp.route("/sound/list", methods=["GET"])
 def list_sounds():
-    # Path to the folder containing the sound files
-    # Try local project structure first
-    project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
-    candidate_paths = [
-        os.path.join(project_root, "sounds"),                         # e.g. /home/parrot/work/parrot/ParrotRobot/sounds
-        os.path.join(os.path.dirname(__file__), "..", "sounds"),       # fallback for relative import
-        "/home/parrot/work/parrot/ParrotRobot/src/sounds",             # explicit known path if using ROS2 install
-    ]
 
-    sounds_folder = next((p for p in candidate_paths if os.path.exists(p)), None)
+    # Always use the main ParrotRobot sounds directory
+    # FIXME: Modify accordingly with your path if needed
+    sounds_folder = os.path.expanduser("~/ParrotRobot/src/sounds")
 
-    if not sounds_folder:
-        return jsonify({"error": "Sounds folder not found in known locations", "checked": candidate_paths}), 404
+    if not os.path.exists(sounds_folder):
+        return jsonify({
+            "error": f"Sounds folder not found at {sounds_folder}"
+        }), 404
 
-    print(f"Listing sounds in folder: {sounds_folder}")
-    # Collect sound file names without extensions
+    print(f"[SOUND] Listing files in: {sounds_folder}")
+
+    # Collect only valid sound files
     sounds = [
         os.path.splitext(f)[0]
         for f in os.listdir(sounds_folder)
         if os.path.isfile(os.path.join(sounds_folder, f))
-           and f.lower().endswith((".mp3", ".wav", ".ogg"))
+        and f.lower().endswith((".mp3", ".wav", ".ogg"))
     ]
 
-    return jsonify({"sounds": sounds, "count": len(sounds)})
+    return jsonify({
+        "sounds": sounds,
+        "count": len(sounds),
+        "path": sounds_folder
+    })
