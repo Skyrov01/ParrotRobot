@@ -59,7 +59,7 @@ function updateServoStatus(id, angle, status) {
   }
 
   function connect(){
-    const es = new EventSource("http://192.168.8.120:5000/servo/stream");
+    const es = new EventSource("http://192.168.8.121:5000/servo/stream");
     es.onmessage = (evt) => {
       const data = JSON.parse(evt.data);
       if (data.snapshot) {

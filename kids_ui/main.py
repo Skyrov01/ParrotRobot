@@ -17,7 +17,7 @@ from script import *
 # Custom imports
 from ui_components import add_navigation
 from ui_components import behaviour_card
-from ui_components import robot_setup_card, advanced_control_card, servo_status_card, description_card
+from ui_components import robot_setup_card, advanced_control_card, servo_status_card, description_card, sound_control_card
 
 from code_editor import code_editor_card
 
@@ -97,7 +97,7 @@ class MainPage:
 
                 def on_slider_change(target, e):
                     ui.notify("Slider changed", color="sunset")
-                    send_servo_command(base_url=app.storage.user.get["robot_ip"], target=target, position=float(e.value))
+                    send_servo_command(base_url=app.storage.user["robot_ip"], target=target, position=float(e.value))
                     
                 
                 with ui.element("div").classes("parrot-container w-full flex justify-center items-center relative"):
@@ -153,6 +153,9 @@ class MainPage:
                         
                     with ui.row().classes("w-full gap-1 no-wrap"):
                         output_area = advanced_control_card()
+
+                        # Sound control card
+                        sound_control_card()
                         
 
                 # -------------------------- Predefined Motions -----------------------------

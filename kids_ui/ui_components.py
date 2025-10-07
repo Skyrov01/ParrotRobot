@@ -3,7 +3,7 @@ from nicegui import ui, app
 
 from http_client import send_behavior
 
-from http_client import send_servo_command, cleanup
+from http_client import send_servo_command, cleanup, play_sound, list_sounds, stop_sound
 from theme import MAIN_COLOR, ACCENT_COLOR_1, ACCENT_COLOR_2, TEXT_COLOR, WHITE, BLACK, FLAG_IMAGE
 
 BASE_URL = "http://192.168.8.120:5000"
@@ -191,7 +191,7 @@ def advanced_control_card():
 
         def send():
             data = send_servo_command(
-                base_url=app.storage.user.get["robot_ip"], 
+                base_url=app.storage.user["robot_ip"], 
                 target=target_input.value,
                 position=position_input.value,
                 method=method_input.value,
@@ -208,6 +208,78 @@ def advanced_control_card():
 
     return output_area
 
+def sound_control_card():
+    with ui.card().classes("w-full md:w-1/2"):
+        ui.label("Sound Control").classes("text-lg font-bold")
+
+        # --- Dropdown for selecting available sounds ---
+        sounds = ["whistle", "greetings", "yes", "no", "maybe", "laugh", "chirp"]
+
+        # Try fetching from server
+        try:
+            available = list_sounds(app.storage.user["robot_ip"])
+            if isinstance(available, dict) and "error" not in available:
+                sounds = available.get("sounds", sounds)
+                print(f"Fetched sounds: {sounds}")
+        except Exception:
+            pass
+
+        with ui.row().classes("flex-nowrap items-end gap-2 overflow-hidden w-full"):
+            sound_input = ui.select(
+                sounds,
+                value=sounds[0] if sounds else "",
+                label="Sound"
+            ).classes("w-full md:w-1/2")
+
+            volume_input = ui.number(
+                "Volume", value=100, min=0, max=100, format="%.0f"
+            ).classes("w-1/5 md:w-1/2")
+
+        # --- Output area ---
+        sound_output = ui.textarea(label="Response").classes("w-full h-32")
+        sound_output.value = "Output will be displayed here"
+
+        # --- Button Actions ---
+        def play():
+            data = play_sound(app.storage.user["robot_ip"], sound_input.value)
+            if "error" in data:
+                sound_output.value = f"❌ Error:\n{data['error']}"
+                ui.notify("Failed to play sound", color="red")
+            else:
+                sound_output.value = f"✅ Playing {sound_input.value}\n{data}"
+                ui.notify(f"Playing {sound_input.value}", color="green")
+
+        def stop():
+            data = stop_sound(app.storage.user["robot_ip"])
+            if "error" in data:
+                sound_output.value = f"❌ Error:\n{data['error']}"
+                ui.notify("Failed to stop sound", color="red")
+            else:
+                sound_output.value = f"🛑 Sound stopped\n{data}"
+                ui.notify("Sound stopped", color="gray")
+
+        def refresh_list():
+            try:
+                available = list_sounds(app.storage.user["robot_ip"])
+                if isinstance(available, dict) and "error" not in available:
+                    new_sounds = available.get("sounds", sounds)
+                    new_sounds.sort()
+                    sound_input.options = new_sounds
+                    sound_input.value = new_sounds[0] if new_sounds else ""
+                    sound_output.value = f"✅ Refreshed sounds: {new_sounds}"
+                    ui.notify("Sound list refreshed", color="green")
+                else:
+                    raise Exception(available.get("error", "Unknown error"))
+            except Exception as e:
+                sound_output.value = f"❌ Error refreshing sounds:\n{str(e)}"
+                ui.notify("Failed to refresh sound list", color="red")
+
+        with ui.row().classes("gap-2 mt-2"):
+            ui.button("Play Sound", on_click=play, color="jungle")
+            ui.button("Stop Sound", on_click=stop, color="sunrise")
+            ui.button("Refresh List", on_click=lambda: refresh_list, color="sunset")
+
+    return sound_output
 
 # -------------------- Servo Status Card --------------------
 def servo_status_card():
