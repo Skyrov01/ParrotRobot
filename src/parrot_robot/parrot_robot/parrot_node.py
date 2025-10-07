@@ -134,7 +134,7 @@ class ParrotNode(Node):
         # this just acknowledges the command was issued.
         self._publish_status(msg.target, msg.position, msg.method, msg.speed, ServoMotorStatus.IDLE, message="command sent")
 
-        servo.cleanup()
+        # servo.cleanup()
 
     def behaviour_callback(self, msg: BehaviourCommand):
         btype = msg.behaviour_type.lower()

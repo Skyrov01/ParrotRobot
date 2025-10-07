@@ -14,7 +14,7 @@ except Exception as e:
     print(f"[WARN] pygame not available, falling back to aplay: {e}")
     USE_PYGAME = False
 
-SOUND_DIR = os.path.expanduser("~/work/parrot/ParrotRobot/parrot_sounds")
+SOUND_DIR = os.path.expanduser("~/work/parrot/ParrotRobot/src/sounds")
 
 class SoundNode(Node):
     def __init__(self):
